@@ -1,0 +1,37 @@
+#ShaNikDev - All rights reserved
+# https://github.com/Nik2143/SkyTax/issues- any problem do not hesitate to contact us!
+FileVersion: 2
+
+prefix: '&7[&6&lSky&e&lTax &7] ' #Prefix added to every plugin message
+prefix-title: '&6&lSky&e&lTax' #Prefix added to every plugin title
+permissions-error: 'You don''t have enough permissions to perform this command' #Message for Permissions Error
+plugin-reloaded: '&7Plugin successfully reloaded' #Message for Plugin Successfully Reloaded
+error: '&7Internal error occurred' #Message for Internal error of Plugin
+island-deleted: '&7Your Island has been deleted because you haven''t payed the tax for %TaxNumber%' #Message sent when your island is deleted (only is-delete mode)
+
+#Messages sent when the island is in locked (only is-lockdown mode)
+leader-join-message: '&7Your Island has been locked because you haven''t payed the tax for %TaxNumber%. Use /skytax isunlock to unlock it' #Message sent to leader of team when he join the game
+member-join-message: '&7Your Island has been locked because the leader hasn''t payed the tax for %TaxNumber%.' #Message sent to members of team when they join the game
+tax-notpayed-leader: '&7Your Island has been locked because you haven''t payed the tax for %TaxNumber%. Use /skytax isunlock to unlock it' #Message sent to leader of team when he try to teleport to island
+tax-notpayed-member: '&7Your Island has been locked because the leader hasn''t payed the tax for %TaxNumber%.' #Message sent to members of team when they try to teleport to island
+tax-notpayed-nomember: '&7The Island has been locked because the leader hasn''t payed the tax for %TaxNumber%.' #Message sent to others when they try to teleport to island (Used only on superior skyblock 2)
+
+leader-join-message-title: '&7Island locked, pay the tax to unlock' #Title sent to leader of team when he join the game
+member-join-message-title: '&7Island locked, ask the leader to pay the tax to unlock' #Title sent to members of team when they join the game
+tax-notpayed-leader-title: '&7Island locked, pay the tax to unlock' #Title sent to leader of team when he try to teleport to island
+tax-notpayed-member-title: '&7Island locked, ask the leader to pay the tax to unlock' #Title sent to members of team when they try to teleport to island
+tax-notpayed-nomember-title: '&7Island locked, the leader hasn''t payed the tax' #Title sent to others when they try to teleport to island (Used only on superior skyblock 2)
+
+#Messages pay
+pay-message: '&7You have payed a tax of $ %tax%' #Message sent when you pay the tax
+pay-message-title: '&7You have payed the tax' #Title sent when you pay the tax
+pay-message-error: '&7You haven''t enough money to pay the tax ($%tax%)' #Message sent when you haven't enough money and you try to pay the tax
+pay-message-error-title: '&7You haven''t enough money' #Title sent when you haven't enough money and you try to pay the tax
+pay-message-notax: '&7You haven''t a tax to pay' #Message sent when tax is already payed
+pay-message-notax-title: '&7You haven''t a tax to pay' #Title sent when tax is already payed
+pay-message-tax-offline: '&7While you were offline you payed a tax of $ %TaxOffline%' #Message sent when you payed a tex while you were offline
+
+#Admin Messages
+island-forceunlocked: "&7Island Unlocked for %player% and his team" #Message sent when you forceunlock an island
+island-notlocked: "&7The island of %player% and his team isn't locked" #Message sent when you try to forceunlock an unlocked island
+island-notfound: "&7Can't find the island of %player%"  #Message sent when plygin can't find an island of the selected player

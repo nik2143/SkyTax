@@ -1,0 +1,33 @@
+name: SkyTax
+version: ${project.version}
+main: it.nik2143.skytax.SkyTax
+prefix: SkyTax
+depend: [Vault]
+softdepend: [ASkyBlock,SuperiorSkyblock2,PlaceholderAPI]
+authors: [Nik2143]
+description: With this plugin you can add a tax based on island level
+commands:
+  skytax:
+    description: main command
+    aliases: [tax, skytax]
+permissions:
+  skytax.reload:
+    description: Allows to use reload command
+    default: op
+  skytax.update:
+    description: Allows to use update command
+    default: op
+  skytax.forceunlock:
+    description: Allows to use forceunlock command
+    default: op
+  skytax.about:
+    description: Allows to use about command
+    default: op
+  skytax.*:
+    description: Wildcard permission
+    default: op
+    children:
+      skytax.reload: true
+      skytax.update: true
+      skytax.forceunlock: true
+      skytax.about: true

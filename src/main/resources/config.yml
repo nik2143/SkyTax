@@ -1,0 +1,43 @@
+#ShaNikDev - All rights reserved
+# https://github.com/Nik2143/SkyTax/issues - any problem do not hesitate to contact us!
+FileVersion: 2
+
+#Data Storage Settings
+database:
+  # Choose between SQLite (localhost database), MySQL (remote database) and JSON (File)
+  type: SQLite
+  # MySQL database information
+  address: "localhost"
+  port: 3306
+  db-name: "SkyTax"
+  username: ""
+  password: ""
+  useSSL: false
+  allowPublicKeyRetrieval: true
+
+#Every how many seconds check who has to pay
+TimeToCheck: 10
+#The spawn command (Essentials spawn for example)
+spawn-command: "spawn"
+#After how much time (in seconds) make player pay again
+TimeToPay: 86400
+#From what level start applying taxes
+start-level: 50
+#Allow users with permission SkyTax.bypass to didn't pay the tax
+TaxBypass: true
+#Base value of tax that will be multiplied with multiplier
+Tax: 100
+#After how much level the multiplier will increase
+IncreaseLevel: 10
+#Tax multiplier (Multiplier will increase of the choosed number every time the level increase of IncreaseLevel)
+Multiplier: 5
+#How much time the player can prevent to pay the tax before the action
+tax-request-before: 2
+#is-delete (Delete the island of user) or is-lockdown (Prevent the user from tp to island)
+tax-expired-action: is-delete
+#Should send titles messages
+send-titles: true
+#The forfeit added to tax when you pay to unlock the island (set to 0 to disable)
+forfeit: 100
+#Send new update message on join
+get-updates: true
