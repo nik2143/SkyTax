@@ -6,7 +6,7 @@ import com.google.gson.GsonBuilder;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import de.leonhard.storage.Json;
-import de.leonhard.storage.Yaml;
+import lombok.Setter;
 import org.bukkit.Bukkit;
 
 import java.io.*;
@@ -23,7 +23,7 @@ public class DataManager {
     private Json data;
     private DataStorageType dataStorageType;
     private HikariDataSource dataSource;
-    public boolean shouldsave = true;
+    @Setter private boolean shouldsave = true;
 
     public DataManager() {
         initialize();
@@ -33,23 +33,9 @@ public class DataManager {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return supplier.call();
-            } catch (Exception e) {
-                if (e instanceof RuntimeException) {
-                    throw (RuntimeException) e;
-                }
-                throw new CompletionException(e);
-            }
-        }, r -> Bukkit.getScheduler().runTaskAsynchronously(SkyTax.getSkyTax(), r));
-    }
-
-    private CompletableFuture<Void> future(Runnable runnable) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                runnable.run();
-            } catch (Exception e) {
-                if (e instanceof RuntimeException) {
-                    throw (RuntimeException) e;
-                }
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e){
                 throw new CompletionException(e);
             }
         }, r -> Bukkit.getScheduler().runTaskAsynchronously(SkyTax.getSkyTax(), r));
@@ -57,15 +43,16 @@ public class DataManager {
 
     public void initialize() {
         this.dataStorageType = DataStorageType.fromName(SkyTax.getSkyTax().getConfiguration().get("database.type", "SQLite"));
-        if (dataStorageType == DataStorageType.Json) {
+        if (dataStorageType == DataStorageType.JSON) {
             return;
-        } else if (dataStorageType == DataStorageType.SQLite) {
+        } else if (dataStorageType == DataStorageType.SQ_LITE) {
             File file = new File(SkyTax.getSkyTax().getDataFolder(), "database.db");
             HikariConfig hikariConfig = new HikariConfig();
+            hikariConfig.setDriverClassName("org.sqlite.JDBC");
             hikariConfig.setJdbcUrl("jdbc:sqlite:" + file.getPath());
             hikariConfig.setConnectionTestQuery("SELECT 1");
             dataSource = new HikariDataSource(hikariConfig);
-        } else if (dataStorageType == DataStorageType.MySql) {
+        } else if (dataStorageType == DataStorageType.MY_SQL) {
             HikariConfig hikariConfig = new HikariConfig();
             hikariConfig.setJdbcUrl("jdbc:mysql://" +
                     SkyTax.getSkyTax().getConfiguration().getString("database.address") + ":"
@@ -113,22 +100,18 @@ public class DataManager {
         }
     }
 
-    public CompletableFuture<Void> saveDataFuture() {
-        return future(this::saveData);
-    }
-
     public CompletableFuture<List<TaxUser>> loadData() {
         return future(() -> {
             List<TaxUser> users = new ArrayList<>();
-            if (dataStorageType.equals(DataStorageType.Json)){
+            if (dataStorageType.equals(DataStorageType.JSON)){
                 this.data = new Json("data", SkyTax.getSkyTax().getDataFolder().getAbsolutePath());
                 Reader reader = null;
                 try {
                     reader = new FileReader(this.data.getFile());
+                    users = new ArrayList<>(((HashMap<String, TaxUser>)(new Gson()).fromJson(reader, (new TypeToken<HashMap<String, TaxUser>>() {}).getType())).values());
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
-                users = new ArrayList<>(((HashMap<String, TaxUser>)(new Gson()).fromJson(reader, (new TypeToken<HashMap<String, TaxUser>>() {}).getType())).values());
             } else {
                 Connection connection = null;
                 Statement s = null;
@@ -168,16 +151,13 @@ public class DataManager {
     }
 
     public void saveData() {
-        SkyTax.skyTax.getLogger().info("&4&lSaving data");
-        if (dataStorageType == DataStorageType.Json) {
+        if (dataStorageType == DataStorageType.JSON) {
             if (shouldsave) {
                 File data = new File(SkyTax.getSkyTax().getDataFolder() + "/data.json");
                 Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                try {
-                    FileWriter fw = new FileWriter(data);
+                try (FileWriter fw = new FileWriter(data)){
                     fw.write(gson.toJson(SkyTax.getSkyTax().getUsers()));
                     fw.flush();
-                    fw.close();
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
@@ -187,7 +167,7 @@ public class DataManager {
             PreparedStatement ps = null;
             try {
                 connection = dataSource.getConnection();
-                if (dataStorageType == DataStorageType.SQLite) {
+                if (dataStorageType == DataStorageType.SQ_LITE) {
                     ps = connection.prepareStatement("INSERT OR REPLACE INTO users(uuid, name, lastPayement, taxnotpayed, taxpayedoffline, lockdown, islandRemoved ) VALUES (?, ?, ?, ?, ?, ?, ?);");
                 } else {
                     ps = connection.prepareStatement("INSERT INTO users(uuid, name, lastPayement, taxnotpayed, taxpayedoffline, lockdown, islandRemoved ) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY " +
@@ -220,25 +200,21 @@ public class DataManager {
     }
 
     public void close() {
-        if (dataStorageType != DataStorageType.Json) {
-            if (dataSource != null && !dataSource.isClosed()) {
-                dataSource.close();
-            }
-        }
+        if (dataStorageType != DataStorageType.JSON && dataSource != null && !dataSource.isClosed()) { dataSource.close(); }
     }
 
     public enum DataStorageType {
-        Json, MySql, SQLite;
+        JSON, MY_SQL, SQ_LITE;
 
         private static DataStorageType fromName(String name) {
             if (name.equalsIgnoreCase("json")) {
-                return DataStorageType.Json;
+                return DataStorageType.JSON;
             }
             if (name.equalsIgnoreCase("MySql")) {
-                return DataStorageType.MySql;
+                return DataStorageType.MY_SQL;
             }
             if (name.equalsIgnoreCase("SQLite")) {
-                return DataStorageType.SQLite;
+                return DataStorageType.SQ_LITE;
             }
             return null;
         }

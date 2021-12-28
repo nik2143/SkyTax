@@ -8,14 +8,15 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.Objects;
 import java.util.UUID;
 
 public class PlayersCheckTask extends BukkitRunnable {
 
     private final IslandsMethods islandsMethods;
 
-    public PlayersCheckTask (IslandsMethods islandsMethods) {
-        this.islandsMethods = islandsMethods;
+    public PlayersCheckTask() {
+        this.islandsMethods = SkyTax.getSkyTax().getIslandsMethods();
     }
 
     @Override
@@ -43,7 +44,7 @@ public class PlayersCheckTask extends BukkitRunnable {
                             case "is-delete":
                                 islandsMethods.deleteIsland(playerUUID);
                                 if (player.getPlayer() != null) {
-                                    player.getPlayer().sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("island-deleted")).replaceAll("%TaxNumber%", String.valueOf(user.taxnotpayed)));
+                                    player.getPlayer().sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("island-deleted")).replace("%TaxNumber%", String.valueOf(user.taxnotpayed)));
                                     if (titlesEnabled) {
                                         player.getPlayer().sendTitle(Utils.color(prefixtitle), Utils.color( SkyTax.getSkyTax().getLanguage().getString("island-deleted-title")));
                                     }
@@ -55,7 +56,7 @@ public class PlayersCheckTask extends BukkitRunnable {
                             case "is-lockdown":
                                 islandsMethods.lockdownAction(player);
                                 if (player.getPlayer() != null) {
-                                    player.getPlayer().sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader")).replaceAll("%TaxNumber%", String.valueOf(user.taxnotpayed)));
+                                    player.getPlayer().sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader")).replace("%TaxNumber%", String.valueOf(user.taxnotpayed)));
                                     if (titlesEnabled) {
                                         player.getPlayer().sendTitle(Utils.color(prefixtitle), Utils.color( SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader-title")));
                                     }
@@ -63,19 +64,16 @@ public class PlayersCheckTask extends BukkitRunnable {
                                 user.lockdown = true;
                                 break;
                             default:
-                                for (OfflinePlayer playerop : Bukkit.getOperators()) {
-                                    if (playerop.getPlayer() != null) {
-                                        playerop.getPlayer().sendMessage(Utils.color("&6&lSkyTax: &cConfiguration Error Occurred on tax-expired-action"));
-                                    }
-                                }
+                                Bukkit.getOperators().stream().filter(OfflinePlayer::isOnline).map(OfflinePlayer::getPlayer).filter(Objects::nonNull)
+                                        .forEach(opPlayer -> opPlayer.sendMessage(Utils.color("&6&lSkyTax: &cConfiguration Error Occurred on tax-expired-action")));
                         }
                     }
                 } else {
                     SkyTax.getSkyTax().getEcon().withdrawPlayer(player, tax);
                     if (player.getPlayer() != null) {
-                        player.getPlayer().sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("pay-message").replaceAll("%tax%", String.valueOf(tax))));
+                        player.getPlayer().sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("pay-message").replace("%tax%", String.valueOf(tax))));
                         if (titlesEnabled) {
-                            player.getPlayer().sendTitle(Utils.color(prefixtitle), Utils.color( SkyTax.getSkyTax().getLanguage().getString("pay-message-title")).replaceAll("%tax%", String.valueOf(tax)));
+                            player.getPlayer().sendTitle(Utils.color(prefixtitle), Utils.color( SkyTax.getSkyTax().getLanguage().getString("pay-message-title")).replace("%tax%", String.valueOf(tax)));
                         }
                     } else {
                         user.taxpayedoffline += tax;

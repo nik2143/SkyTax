@@ -1,18 +1,11 @@
 package it.nik2143.skytax;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import de.leonhard.storage.Json;
 import de.leonhard.storage.Yaml;
 import it.nik2143.skytax.commands.SkyTaxCommand;
-import it.nik2143.skytax.commands.TabAutoComplete;
 import it.nik2143.skytax.hooks.ASkyBlock;
 import it.nik2143.skytax.hooks.IslandsMethods;
 import it.nik2143.skytax.hooks.SuperiorSkyblock2;
-import it.nik2143.skytax.listeners.IslandTpEventASky;
-import it.nik2143.skytax.listeners.IslandTpEventSuperior;
-import it.nik2143.skytax.listeners.JoinEvent;
-import it.nik2143.skytax.listeners.WorldSave;
+import it.nik2143.skytax.listeners.PlayerJoinListener;
 import it.nik2143.skytax.placeholders.ClipPlaceholderAPI;
 import it.nik2143.skytax.tasks.PlayersCheckTask;
 import it.nik2143.skytax.utils.FilesUpdater;
@@ -26,48 +19,46 @@ import org.bukkit.ChatColor;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 @Getter
 public class SkyTax extends JavaPlugin {
 
-    public static SkyTax skyTax;
-    public boolean outdated;
+    @Getter private static SkyTax skyTax;
+    private boolean outdated;
+    private IslandsMethods islandsMethods;
     private Economy econ = null;
     private Permission perms = null;
     private Yaml configuration;
     private Yaml language;
-    private boolean shouldsave = true;
     private String newVersion;
     private HashMap<String,TaxUser> users = new HashMap<>();
     private DataManager dataManager;
 
-
     @Override
     public void onEnable() {
         skyTax = this;
-        Yaml config;
-        Yaml language;
         try {
-            config = new Yaml("config", this.getDataFolder().getAbsolutePath(),this.getResource("config.yml"));
+            configuration = new Yaml("config", this.getDataFolder().getAbsolutePath(),this.getResource("config.yml"));
             language = new Yaml("language", this.getDataFolder().getAbsolutePath(),this.getResource("language.yml"));
-            new FilesUpdater(this,config.getFile(),config.getName()).checkUpdate(config.getInt("FileVersion"),2);
+            new FilesUpdater(this,configuration.getFile(),configuration.getName()).checkUpdate(configuration.getInt("FileVersion"),3);
             new FilesUpdater(this,language.getFile(),language.getName()).checkUpdate(language.getInt("FileVersion"),2);
-            this.configuration = config;
-            this.language = language;
             dataManager = new DataManager();
         } catch (Exception e){
+            e.printStackTrace();
             Bukkit.getServer().getConsoleSender().sendMessage(Utils.color( "&c&lERROR: &f[SkyTax] An error occurred while loading configuration files, a backup of data file will be created. The plugin will be disabled"));
             try {
                 Files.copy(new File(getDataFolder()+"/data.json").toPath(),new File(getDataFolder()+"/data-broken-"+System.currentTimeMillis()+".json").toPath(), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException ioException) {
                 Bukkit.getServer().getConsoleSender().sendMessage(Utils.color( "&c&lERROR: &f[SkyTax] An error occured while backup of data"));
-                dataManager.shouldsave = false;
+                dataManager.setShouldsave(false);
             }
             Bukkit.getServer().getPluginManager().disablePlugin(this);
             return;
@@ -77,7 +68,6 @@ public class SkyTax extends JavaPlugin {
             users = new HashMap<>();
             userslist.forEach(user-> users.put(user.uuid,user));
         });
-        IslandsMethods islandsMethods = null;
         if (Bukkit.getPluginManager().isPluginEnabled("ASkyBlock")) islandsMethods = new ASkyBlock();
         else if (Bukkit.getPluginManager().isPluginEnabled("SuperiorSkyblock2")) islandsMethods = new SuperiorSkyblock2();
         if (islandsMethods == null){
@@ -86,8 +76,9 @@ public class SkyTax extends JavaPlugin {
             return;
         }
         getLogger().info("Version " + getDescription().getVersion()  + " - Using "+islandsMethods.getClass().getSimpleName());
-        this.getCommand("skytax").setExecutor(new SkyTaxCommand(islandsMethods));
-        this.getCommand("skytax").setTabCompleter(new TabAutoComplete());
+        SkyTaxCommand skyTaxCommand = new SkyTaxCommand();
+        Objects.requireNonNull(this.getCommand("skytax")).setExecutor(skyTaxCommand);
+        Objects.requireNonNull(this.getCommand("skytax")).setTabCompleter(skyTaxCommand);
         registerEvents(islandsMethods);
         if (!setupEconomy()) {
             Bukkit.getServer().getConsoleSender().sendMessage(Utils.color("&c&lERROR: &f[SkyTax] Economy Manager Plugin not found, but is required to use this plugin so plugin will be disabled "));
@@ -99,9 +90,10 @@ public class SkyTax extends JavaPlugin {
             Bukkit.getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        registerPlaceholders(islandsMethods,config);
+        registerPlaceholders();
         new Metrics(this, 9777);
-        new PlayersCheckTask(islandsMethods).runTaskTimerAsynchronously(this,1L, config.getLong("TimeToCheck") * 20L);
+        new PlayersCheckTask().runTaskTimerAsynchronously(this,1L, configuration.getLong("TimeToCheck") * 20L);
+        Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> getDataManager().saveData(),configuration.getLong("save-data-time") * 20L,configuration.getLong("save-data-time") * 20L);
         checkUpdate();
     }
 
@@ -109,17 +101,21 @@ public class SkyTax extends JavaPlugin {
     public void onDisable() {
         dataManager.saveData();
         dataManager.close();
-        try{
-            if (configuration.getInputStream().isPresent()){
-                configuration.getInputStream().get().close();
+        configuration.getInputStream().ifPresent(inputStream -> {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            if (language.getInputStream().isPresent()){
-                language.getInputStream().get().close();
+        });
+        language.getInputStream().ifPresent(inputStream -> {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        }catch (IOException e){
-            e.printStackTrace();
-        }
-        System.out.println("[SkyTax] Version - " + getDescription().getVersion() + " Disabled");
+        });
+        getLogger().info("Version - " + getDescription().getVersion() + " Disabled");
     }
 
 
@@ -128,7 +124,7 @@ public class SkyTax extends JavaPlugin {
             outdated = result.requiresUpdate();
             newVersion = result.getNewestVersion();
             if (outdated){
-                Bukkit.getConsoleSender().sendMessage(Utils.color("[SkyTax] New update available (" + newVersion + ")"));
+                getLogger().warning("[SkyTax] New update available (" + newVersion + ")");
             }
         }));
     }
@@ -164,17 +160,11 @@ public class SkyTax extends JavaPlugin {
         Bukkit.getServer().getPluginManager().registerEvents(new WorldSave(),this);
     }
 
-    private void registerPlaceholders(IslandsMethods islandsMethods,Yaml config){
+    private void registerPlaceholders(){
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")){
-            new ClipPlaceholderAPI(islandsMethods,config).register();
+            new ClipPlaceholderAPI().register();
         }
     }
-
-    public static SkyTax getSkyTax(){
-        return skyTax;
-    }
-
-
 
 }
 

@@ -6,8 +6,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
-
 public class Utils {
+
+    private Utils() {
+        throw new InstantiationError("Can't create an instance of Utils class");
+    }
 
     public static String color(String string) {
         return ChatColor.translateAlternateColorCodes('&', string);

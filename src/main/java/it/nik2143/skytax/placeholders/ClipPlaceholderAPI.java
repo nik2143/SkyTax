@@ -1,6 +1,7 @@
 package it.nik2143.skytax.placeholders;
 
 import de.leonhard.storage.Yaml;
+import it.nik2143.skytax.SkyTax;
 import it.nik2143.skytax.TaxUser;
 import it.nik2143.skytax.hooks.IslandsMethods;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
@@ -16,9 +17,9 @@ public class ClipPlaceholderAPI extends PlaceholderExpansion {
     private final IslandsMethods islandsMethods;
     private final Yaml config;
 
-    public ClipPlaceholderAPI(IslandsMethods islandsMethods, Yaml config){
-        this.islandsMethods=islandsMethods;
-        this.config = config;
+    public ClipPlaceholderAPI(){
+        this.islandsMethods= SkyTax.getSkyTax().getIslandsMethods();
+        this.config = SkyTax.getSkyTax().getConfiguration();
     }
 
     @Override

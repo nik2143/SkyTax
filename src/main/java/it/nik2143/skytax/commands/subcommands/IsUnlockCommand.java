@@ -1,32 +1,23 @@
-package it.nik2143.skytax.commands;
+package it.nik2143.skytax.commands.subcommands;
 
 import it.nik2143.skytax.SkyTax;
 import it.nik2143.skytax.TaxUser;
 import it.nik2143.skytax.Utils;
+import it.nik2143.skytax.commands.Subcommand;
 import it.nik2143.skytax.hooks.IslandsMethods;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
-public class IsUnlockCommand {
+public class IsUnlockCommand extends Subcommand {
 
-    private final CommandSender sender;
-    String prefix;
-    private final IslandsMethods islandsMethods;
-
-    public IsUnlockCommand(CommandSender sender,IslandsMethods islandsMethods) {
-        this.sender = sender;
-        prefix = SkyTax.getSkyTax().getLanguage().getString("prefix");
-        this.islandsMethods = islandsMethods;
+    public IsUnlockCommand() {
+        super(0);
     }
 
-    public void execute() {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage("[SkyTax] Command Executable only from a player");
-            return;
-        }
-        Player player = (Player) sender;
+    @Override
+    public void execute(Player player, String[] args) {
+        IslandsMethods islandsMethods = SkyTax.getSkyTax().getIslandsMethods();
         double balance = SkyTax.getSkyTax().getEcon().getBalance(player);
         String prefix = SkyTax.getSkyTax().getLanguage().getString("prefix");
         String prefixtitle = SkyTax.getSkyTax().getLanguage().getString("prefix-title");
@@ -43,20 +34,25 @@ public class IsUnlockCommand {
         double tax = islandsMethods.calculateTax(islandsMethods.getIslandLevel(player));
         tax += SkyTax.getSkyTax().getConfiguration().getOrDefault("forfeit", 0);
         if (balance < tax) {
-            player.sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("pay-message-error").replaceAll("%tax%", String.valueOf(tax))));
+            player.sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("pay-message-error").replace("%tax%", String.valueOf(tax))));
             if (titlesEnabled) {
-                player.sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("pay-message-error-title")).replaceAll("%tax%", String.valueOf(tax)));
+                player.sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("pay-message-error-title")).replace("%tax%", String.valueOf(tax)));
             }
             return;
         }
         SkyTax.getSkyTax().getEcon().withdrawPlayer(player, tax);
-        player.sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("pay-message").replaceAll("%tax%", String.valueOf(tax))));
+        player.sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("pay-message").replace("%tax%", String.valueOf(tax))));
         if (titlesEnabled) {
-            player.sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("pay-message-title")).replaceAll("%tax%", String.valueOf(tax)));
+            player.sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("pay-message-title")).replace("%tax%", String.valueOf(tax)));
         }
         taxleader.lastPayement = java.time.Instant.now().getEpochSecond();
         taxleader.taxnotpayed = 0;
         taxleader.lockdown = false;
+    }
+
+    @Override
+    public String getHelpMessage() {
+        return Utils.color("&d/skytax isunlock &8- &fUnlock the island when he is locked by tax");
     }
 
 }

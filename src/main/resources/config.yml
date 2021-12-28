@@ -1,6 +1,6 @@
 #ShaNikDev - All rights reserved
 # https://github.com/Nik2143/SkyTax/issues - any problem do not hesitate to contact us!
-FileVersion: 2
+FileVersion: 3
 
 #Data Storage Settings
 database:
@@ -41,3 +41,5 @@ send-titles: true
 forfeit: 100
 #Send new update message on join
 get-updates: true
+#Time in seconds for save data task
+save-data-time: 300
