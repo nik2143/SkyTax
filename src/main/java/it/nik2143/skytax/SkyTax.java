@@ -79,7 +79,7 @@ public class SkyTax extends JavaPlugin {
         SkyTaxCommand skyTaxCommand = new SkyTaxCommand();
         Objects.requireNonNull(this.getCommand("skytax")).setExecutor(skyTaxCommand);
         Objects.requireNonNull(this.getCommand("skytax")).setTabCompleter(skyTaxCommand);
-        registerEvents(islandsMethods);
+        registerEvents();
         if (!setupEconomy()) {
             Bukkit.getServer().getConsoleSender().sendMessage(Utils.color("&c&lERROR: &f[SkyTax] Economy Manager Plugin not found, but is required to use this plugin so plugin will be disabled "));
             Bukkit.getServer().getPluginManager().disablePlugin(this);
@@ -150,14 +150,9 @@ public class SkyTax extends JavaPlugin {
         return true;
     }
 
-    private void registerEvents(IslandsMethods islandsMethods) {
-        Bukkit.getServer().getPluginManager().registerEvents(new JoinEvent(islandsMethods),this);
-        if (Bukkit.getServer().getPluginManager().getPlugin("ASkyBlock")!=null) {
-            Bukkit.getServer().getPluginManager().registerEvents(new IslandTpEventASky(), this);
-        } else if (Bukkit.getServer().getPluginManager().getPlugin("SuperiorSkyblock2")!=null){
-            Bukkit.getServer().getPluginManager().registerEvents(new IslandTpEventSuperior(), this);
-        }
-        Bukkit.getServer().getPluginManager().registerEvents(new WorldSave(),this);
+    private void registerEvents() {
+        Bukkit.getServer().getPluginManager().registerEvents(new PlayerJoinListener(),this);
+        islandsMethods.registerEvents();
     }
 
     private void registerPlaceholders(){

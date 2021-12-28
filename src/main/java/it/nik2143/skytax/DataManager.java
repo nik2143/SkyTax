@@ -18,6 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+@SuppressWarnings("UnstableApiUsage")
 public class DataManager {
 
     private Json data;
@@ -105,7 +106,7 @@ public class DataManager {
             List<TaxUser> users = new ArrayList<>();
             if (dataStorageType.equals(DataStorageType.JSON)){
                 this.data = new Json("data", SkyTax.getSkyTax().getDataFolder().getAbsolutePath());
-                Reader reader = null;
+                Reader reader;
                 try {
                     reader = new FileReader(this.data.getFile());
                     users = new ArrayList<>(((HashMap<String, TaxUser>)(new Gson()).fromJson(reader, (new TypeToken<HashMap<String, TaxUser>>() {}).getType())).values());
@@ -153,9 +154,9 @@ public class DataManager {
     public void saveData() {
         if (dataStorageType == DataStorageType.JSON) {
             if (shouldsave) {
-                File data = new File(SkyTax.getSkyTax().getDataFolder() + "/data.json");
+                File dataFile = new File(SkyTax.getSkyTax().getDataFolder() + "/data.json");
                 Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                try (FileWriter fw = new FileWriter(data)){
+                try (FileWriter fw = new FileWriter(dataFile)){
                     fw.write(gson.toJson(SkyTax.getSkyTax().getUsers()));
                     fw.flush();
                 } catch (IOException ex) {

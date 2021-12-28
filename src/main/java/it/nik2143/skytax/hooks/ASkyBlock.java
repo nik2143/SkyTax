@@ -1,41 +1,23 @@
 package it.nik2143.skytax.hooks;
 
 import com.wasteofplastic.askyblock.ASkyBlockAPI;
+import com.wasteofplastic.askyblock.Island;
+import com.wasteofplastic.askyblock.events.IslandEnterEvent;
+import com.wasteofplastic.askyblock.events.IslandPreTeleportEvent;
 import it.nik2143.skytax.SkyTax;
 import it.nik2143.skytax.TaxUser;
 import it.nik2143.skytax.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.player.PlayerJoinEvent;
 
 import java.math.BigInteger;
 import java.util.UUID;
 
 
-public class ASkyBlock implements IslandsMethods {
-
-    @Override
-    public double calculateTax(long islandLevel) {
-        long startlevel = SkyTax.getSkyTax().getConfiguration().getLong("start-level");
-        double tax = SkyTax.getSkyTax().getConfiguration().getDouble("Tax");
-        double multiplier = SkyTax.getSkyTax().getConfiguration().getDouble("Multiplier");
-        int increaseLevel = SkyTax.getSkyTax().getConfiguration().getInt("IncreaseLevel");
-        long taxedLevel = islandLevel - startlevel;
-        long increaseTime = taxedLevel / increaseLevel;
-        multiplier = multiplier * tax;
-        if (increaseTime==0){
-            return tax;
-        }
-        for (int i = 0;i<increaseTime;i++){
-            tax += multiplier;
-        }
-        return tax;
-    }
-
-    @Override
-    public double calculateTax(BigInteger islandLevel) {
-        return calculateTax(islandLevel.longValue());
-    }
+public class ASkyBlock extends IslandsMethods {
 
     @Override
     public UUID getTeamLeader(OfflinePlayer player) {
@@ -57,16 +39,6 @@ public class ASkyBlock implements IslandsMethods {
     }
 
     @Override
-    public boolean shouldPayTax(TaxUser user){
-        long islandLevel = ASkyBlockAPI.getInstance().getLongIslandLevel(user.getOfflinePlayer().getUniqueId());
-        return !user.lockdown &&
-                hasPayedTax(user) &&
-                islandLevel != 0 &&
-                islandLevel >= SkyTax.getSkyTax().getConfiguration().getLong("start-level") &&
-                (!SkyTax.getSkyTax().getConfiguration().getBoolean("TaxBypass") || !SkyTax.getSkyTax().getPerms().playerHas(null, user.getOfflinePlayer(), "SkyTax.bypass"));
-    }
-
-    @Override
     public void lockdownAction(OfflinePlayer islandOwner) {
         for (Player target : SkyTax.getSkyTax().getServer().getOnlinePlayers()) {
             if (target == null || target.hasMetadata("NPC") || ASkyBlockAPI.getInstance().getIslandAt(target.getLocation())==null) continue;
@@ -82,11 +54,77 @@ public class ASkyBlock implements IslandsMethods {
     }
 
     @Override
-    public boolean hasPayedTax(TaxUser user) {
-        int timeToPay = SkyTax.getSkyTax().getConfiguration().getInt("TimeToPay");
-        long epochSeconds = java.time.Instant.now().getEpochSecond();
-        long newPayement = epochSeconds - user.lastPayement;
-        return newPayement > timeToPay;
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Island island = ASkyBlockAPI.getInstance().getIslandAt(event.getPlayer().getLocation());
+        if (island != null){
+            TaxUser ownerTaxUser = TaxUser.getUser(island.getOwner());
+            if (ownerTaxUser != null && ownerTaxUser.lockdown){
+                Utils.teleportToSpawn(event.getPlayer());
+            }
+        }
+    }
+
+    @EventHandler
+    private void onIslandEnter(IslandEnterEvent e){
+        UUID uuidPlayer = e.getPlayer();
+        TaxUser user = TaxUser.getUser(uuidPlayer);
+        Player player = Bukkit.getPlayer(uuidPlayer);
+        boolean titlesEnabled = SkyTax.getSkyTax().getConfiguration().getBoolean("send-titles");
+        String prefix = SkyTax.getSkyTax().getLanguage().getString("prefix");
+        String prefixtitle = SkyTax.getSkyTax().getLanguage().getString("prefix-title");
+        if (TaxUser.getUser(ASkyBlockAPI.getInstance().getIslandAt(e.getLocation()).getOwner().toString())!= null &&
+                TaxUser.getUser(ASkyBlockAPI.getInstance().getIslandAt(e.getLocation()).getOwner().toString()).lockdown){
+            UUID uuidLeader = ASkyBlockAPI.getInstance().getIslandAt(e.getLocation()).getOwner();
+            if(uuidPlayer.equals(uuidLeader))
+            {
+                player.sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader").replace("%TaxNumber%", String.valueOf(user.taxnotpayed))));
+                if(titlesEnabled) {
+                    player.sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader-title").replace("%TaxNumber%", String.valueOf(user.taxnotpayed))));
+                }
+            }else if (ASkyBlockAPI.getInstance().getTeamMembers(uuidLeader).contains(e.getPlayer())){
+                player.sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-member").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                if(titlesEnabled) {
+                    player.sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-member-title").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                }
+            } else {
+                player.sendMessage(Utils.color( prefix + SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-nomember").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                if (titlesEnabled) {
+                    player.sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-nomember-title").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                }
+            }
+            Utils.teleportToSpawn(player);
+        }
+    }
+
+    @EventHandler
+    private void onIslandPreTelepor(IslandPreTeleportEvent e) {
+        UUID uuidPlayer = e.getPlayer().getUniqueId();
+        TaxUser user = TaxUser.getUser(e.getPlayer());
+        boolean titlesEnabled = SkyTax.getSkyTax().getConfiguration().getBoolean("send-titles");
+        String prefix = SkyTax.getSkyTax().getLanguage().getString("prefix");
+        String prefixtitle = SkyTax.getSkyTax().getLanguage().getString("prefix-title");
+        if (TaxUser.getUser(ASkyBlockAPI.getInstance().getIslandAt(e.getLocation()).getOwner().toString())!= null &&
+                TaxUser.getUser(ASkyBlockAPI.getInstance().getIslandAt(e.getLocation()).getOwner().toString()).lockdown){
+            UUID uuidLeader = ASkyBlockAPI.getInstance().getIslandAt(e.getLocation()).getOwner();
+            if(uuidPlayer.equals(uuidLeader))
+            {
+                e.getPlayer().sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader").replace("%TaxNumber%", String.valueOf(user.taxnotpayed))));
+                if(titlesEnabled) {
+                    e.getPlayer().sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader-title").replace("%TaxNumber%", String.valueOf(user.taxnotpayed))));
+                }
+            }else if (ASkyBlockAPI.getInstance().getTeamMembers(uuidLeader).contains(e.getPlayer().getUniqueId())){
+                e.getPlayer().sendMessage(Utils.color(prefix +  SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-member").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                if(titlesEnabled) {
+                    e.getPlayer().sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-member-title").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                }
+            } else {
+                e.getPlayer().sendMessage(Utils.color( prefix + SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-nomember").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                if (titlesEnabled) {
+                    e.getPlayer().sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-nomember-title").replace("%TaxNumber%", String.valueOf(TaxUser.getUser(uuidLeader.toString()).taxnotpayed))));
+                }
+            }
+            e.setCancelled(true);
+        }
     }
 
 }

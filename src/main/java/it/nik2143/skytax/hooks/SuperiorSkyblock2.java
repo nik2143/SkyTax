@@ -1,51 +1,21 @@
 package it.nik2143.skytax.hooks;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
+import com.bgsoftware.superiorskyblock.api.events.IslandEnterEvent;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import it.nik2143.skytax.TaxUser;
 import it.nik2143.skytax.SkyTax;
+import it.nik2143.skytax.TaxUser;
+import it.nik2143.skytax.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.player.PlayerJoinEvent;
 
 import java.math.BigInteger;
 import java.util.UUID;
 
-public class SuperiorSkyblock2 implements IslandsMethods{
-
-    @Override
-    public boolean shouldPayTax (TaxUser user){
-        SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(user.getOfflinePlayer().getUniqueId());
-        if (superiorPlayer.getIsland() == null) return false;
-        BigInteger islandLevel = superiorPlayer.getIsland().getIslandLevel().toBigInteger();
-        return  !user.lockdown &&
-                hasPayedTax(user) && islandLevel.compareTo(BigInteger.ZERO) != 0 &&
-                islandLevel.compareTo(BigInteger.valueOf(SkyTax.getSkyTax().getConfiguration().getLong("start-level"))) >= 0 &&
-                (!SkyTax.getSkyTax().getConfiguration().getBoolean("TaxBypass") || !SkyTax.getSkyTax().getPerms().playerHas(null, user.getOfflinePlayer(), "SkyTax.bypass"));
-    }
-
-    @Override
-    public double calculateTax(long islandLevel) {
-        return calculateTax(BigInteger.valueOf(islandLevel));
-    }
-
-    @Override
-    public double calculateTax(BigInteger islandLevel) {
-        BigInteger livelloiniziale = BigInteger.valueOf(SkyTax.getSkyTax().getConfiguration().getLong("start-level"));
-        double tax = SkyTax.getSkyTax().getConfiguration().getDouble("Tax");
-        double multiplier = SkyTax.getSkyTax().getConfiguration().getDouble("Multiplier");
-        int increaseLevel = SkyTax.getSkyTax().getConfiguration().getInt("IncreaseLevel");
-        BigInteger taxedLevel = islandLevel.subtract(livelloiniziale);
-        long increaseTime = taxedLevel.divide(BigInteger.valueOf(increaseLevel)).longValue();
-        multiplier = multiplier * tax;
-        if (increaseTime==0){
-            return tax;
-        }
-        for (int i = 0;i<increaseTime;i++){
-            tax += multiplier;
-        }
-        return tax;
-    }
+public class SuperiorSkyblock2 extends IslandsMethods {
 
     @Override
     public UUID getTeamLeader(OfflinePlayer player) {
@@ -55,6 +25,18 @@ public class SuperiorSkyblock2 implements IslandsMethods{
     @Override
     public boolean hasIsland(OfflinePlayer player) {
         return SuperiorSkyblockAPI.getPlayer(player.getUniqueId()).getIsland() != null;
+    }
+
+    @Override
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Island island = SuperiorSkyblockAPI.getIslandAt(event.getPlayer().getLocation());
+        if (island != null && !island.isSpawn()){
+            TaxUser ownerTaxUser = TaxUser.getUser(island.getOwner().getUniqueId());
+            if (ownerTaxUser != null && ownerTaxUser.lockdown){
+                SuperiorSkyblockAPI.getPlayer(event.getPlayer()).teleport(SuperiorSkyblockAPI.getSpawnIsland());
+                island.setPlayerInside(SuperiorSkyblockAPI.getPlayer(event.getPlayer()), false);
+            }
+        }
     }
 
     @Override
@@ -83,11 +65,38 @@ public class SuperiorSkyblock2 implements IslandsMethods{
         }
     }
 
-    @Override
-    public boolean hasPayedTax(TaxUser User) {
-        int timeToPay = SkyTax.getSkyTax().getConfiguration().getInt("TimeToPay");
-        long epochSeconds = java.time.Instant.now().getEpochSecond();
-        long newPayement = epochSeconds - User.lastPayement;
-        return newPayement > timeToPay;
+    @EventHandler
+    private void onIslandEnter(IslandEnterEvent e) {
+        Island island = e.getIsland();
+        if (island == null) return;
+        boolean titlesEnabled = SkyTax.getSkyTax().getConfiguration().getBoolean("send-titles");
+        String prefix = SkyTax.getSkyTax().getLanguage().getString("prefix");
+        String prefixtitle = SkyTax.getSkyTax().getLanguage().getString("prefix-title");
+        SuperiorPlayer leader = island.getOwner();
+        if (leader == null) return;
+        TaxUser taxUserLeader = TaxUser.getUser(leader.getUniqueId());
+        if (taxUserLeader==null) return;
+        if (taxUserLeader.lockdown) {
+            if (leader.getUniqueId().equals(e.getPlayer().getUniqueId())) {
+                e.getPlayer().asPlayer().sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader").replace("%TaxNumber%", String.valueOf(taxUserLeader.taxnotpayed))));
+                if (titlesEnabled) {
+                    e.getPlayer().asPlayer().sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-leader-title").replace("%TaxNumber%", String.valueOf(taxUserLeader.taxnotpayed))));
+                }
+            }
+            else if (island.isMember(e.getPlayer())){
+                e.getPlayer().asPlayer().sendMessage(Utils.color(prefix + SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-member").replace("%TaxNumber%", String.valueOf(taxUserLeader.taxnotpayed))));
+                if (titlesEnabled) {
+                    e.getPlayer().asPlayer().sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-member-title").replace("%TaxNumber%", String.valueOf(taxUserLeader.taxnotpayed))));
+                }
+            }
+            else {
+                e.getPlayer().asPlayer().sendMessage(Utils.color( prefix + SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-nomember").replace("%TaxNumber%", String.valueOf(taxUserLeader.taxnotpayed))));
+                if (titlesEnabled) {
+                    e.getPlayer().asPlayer().sendTitle(Utils.color(prefixtitle), Utils.color(SkyTax.getSkyTax().getLanguage().getString("tax-notpayed-nomember-title").replace("%TaxNumber%", String.valueOf(taxUserLeader.taxnotpayed))));
+                }
+            }
+            island.setPlayerInside(e.getPlayer(),false);
+            e.setCancelled(true);
+        }
     }
 }
